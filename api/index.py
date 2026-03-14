@@ -33,6 +33,7 @@ cookie_path = "/tmp/cookies.txt"
 with open(cookie_path, "w") as f:
     f.write(COOKIES.strip())
 
+
 @app.route("/info")
 def info():
 
@@ -44,27 +45,62 @@ def info():
     ydl_opts = {
         "cookiefile": cookie_path,
         "quiet": True,
-        "skip_download": True,
-        "format": "best"
+        "skip_download": True
     }
 
     try:
+
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             data = ydl.extract_info(url, download=False)
 
-        return jsonify({
+        video_formats = []
+        audio_formats = []
+
+        for f in data.get("formats", []):
+
+            item = {
+                "itag": f.get("format_id"),
+                "quality": f.get("format_note"),
+                "resolution": f"{f.get('width')}x{f.get('height')}" if f.get("width") else None,
+                "fps": f.get("fps"),
+                "ext": f.get("ext"),
+                "filesize": f.get("filesize"),
+                "bitrate": f.get("tbr"),
+                "url": f.get("url")
+            }
+
+            if f.get("vcodec") != "none":
+                video_formats.append(item)
+
+            if f.get("acodec") != "none" and f.get("vcodec") == "none":
+                audio_formats.append(item)
+
+        response = {
             "title": data.get("title"),
-            "thumbnail": data.get("thumbnail"),
+            "description": data.get("description"),
             "duration": data.get("duration"),
-            "download": data.get("url")
-        })
+            "view_count": data.get("view_count"),
+            "like_count": data.get("like_count"),
+            "upload_date": data.get("upload_date"),
+            "channel": data.get("channel"),
+            "channel_url": data.get("channel_url"),
+            "uploader": data.get("uploader"),
+            "thumbnail": data.get("thumbnail"),
+            "tags": data.get("tags"),
+            "video_formats": video_formats,
+            "audio_formats": audio_formats
+        }
+
+        return jsonify(response)
 
     except Exception as e:
         return jsonify({"error": str(e)})
 
+
 @app.route("/")
 def home():
-    return {"message": "YouTube Info API يعمل"}
+    return {"message": "YouTube Full Info API يعمل"}
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
